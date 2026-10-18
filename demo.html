@@ -1,0 +1,637 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>迷わない学内マップ デモ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#e9eef2; --card:#ffffff; --ink:#0d1f33; --muted:#566779; --line:#cfd8e0;
+  --navy:#0b2a4a; --navy-ink:#ffffff;
+  --yellow:#ffc700; --yellow-ink:#0b2a4a; --yellow-soft:#fff4c2; --warn-line:#b07d00;
+  --sel-bg:#0b2a4a; --sel-ink:#ffffff;
+  --bld:#dfe7ed; --bld-line:#9fb1c0; --hl:#fff1b8;
+  --ground:#d5dbd0; --ground-line:#7c8b7a; --field:#f4f7f9;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0a141f; --card:#122232; --ink:#e8eff5; --muted:#93a6b8; --line:#24384a;
+    --navy:#0f2a44; --navy-ink:#ffffff;
+    --yellow-soft:#3a3210; --warn-line:#ffc700;
+    --sel-bg:#ffc700; --sel-ink:#0b2a4a;
+    --bld:#1b3247; --bld-line:#4a6580; --hl:#4a4014;
+    --ground:#1c2b25; --ground-line:#5c7a68; --field:#0e1c2a;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0a141f; --card:#122232; --ink:#e8eff5; --muted:#93a6b8; --line:#24384a;
+  --navy:#0f2a44; --navy-ink:#ffffff;
+  --yellow-soft:#3a3210; --warn-line:#ffc700;
+  --sel-bg:#ffc700; --sel-ink:#0b2a4a;
+  --bld:#1b3247; --bld-line:#4a6580; --hl:#4a4014;
+  --ground:#1c2b25; --ground-line:#5c7a68; --field:#0e1c2a;
+}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic UI","Noto Sans JP",sans-serif;font-size:16px;line-height:1.6;-webkit-text-size-adjust:100%}
+body.large{font-size:19px}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--yellow);outline-offset:2px}
+.wrap{max-width:520px;margin:0 auto;padding:0 14px 40px}
+
+/* header: 案内サイン + 点字ブロック帯 */
+.sign{background:var(--navy);color:var(--navy-ink);margin:0 -14px;padding:18px 18px 16px}
+.sign h1{margin:0;font-size:1.55em;font-weight:900;letter-spacing:.02em;line-height:1.25}
+.sign p{margin:6px 0 0;font-size:.92em;opacity:.88}
+.tactile{height:14px;margin:0 -14px 14px;background-color:var(--yellow);background-image:radial-gradient(circle at 50% 50%,var(--navy) 0 2.6px,transparent 3px);background-size:14px 14px}
+.note{font-size:.82em;color:var(--muted);margin:0 0 12px}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin:0 0 12px}
+.card h2{margin:0 0 8px;font-size:1.05em;font-weight:900}
+.sub{font-size:.85em;color:var(--muted);margin:0 0 10px}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1.5px solid var(--line);background:var(--field);border-radius:999px;padding:7px 13px;font-size:.92em;font-weight:500;min-height:40px}
+.chip[aria-pressed="true"]{background:var(--sel-bg);color:var(--sel-ink);border-color:var(--sel-bg);font-weight:700}
+
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin:0 0 12px;border:1.5px solid var(--navy);border-radius:10px;overflow:hidden}
+.tabs button{border:0;background:var(--card);padding:11px 4px;font-weight:700;font-size:.92em;min-height:44px}
+.tabs button+button{border-left:1.5px solid var(--navy)}
+.tabs button[aria-selected="true"]{background:var(--sel-bg);color:var(--sel-ink)}
+
+.purpose{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 12px}
+.purpose button{border:1.5px solid var(--line);background:var(--field);border-radius:10px;padding:10px 6px;text-align:center;min-height:64px}
+.purpose b{display:block;font-size:1em}
+.purpose span{display:block;font-size:.76em;color:var(--muted)}
+.purpose button[aria-pressed="true"]{background:var(--sel-bg);border-color:var(--sel-bg);color:var(--sel-ink)}
+.purpose button[aria-pressed="true"] span{color:inherit;opacity:.85}
+
+.search{width:100%;border:1.5px solid var(--bld-line);background:var(--field);border-radius:10px;padding:12px 14px;min-height:48px}
+.rows{list-style:none;margin:10px 0 0;padding:0}
+.rowwrap{display:flex;gap:6px;margin:0 0 6px}
+.row{flex:1;text-align:left;border:1.5px solid var(--line);background:var(--card);border-radius:10px;padding:9px 12px;min-height:52px}
+.row b{display:block;font-weight:700}
+.row small{color:var(--muted);font-size:.8em}
+.row:hover{border-color:var(--navy)}
+.star{width:48px;border:1.5px solid var(--line);background:var(--card);border-radius:10px;font-size:1.25em;line-height:1}
+.star[aria-pressed="true"]{color:#b07d00;border-color:var(--warn-line);background:var(--yellow-soft)}
+.empty{color:var(--muted);font-size:.9em;padding:6px 2px}
+
+.btn{border:0;background:var(--yellow);color:var(--yellow-ink);font-weight:900;border-radius:10px;padding:11px 16px;min-height:46px}
+.btn.ghost{background:var(--field);color:var(--ink);border:1.5px solid var(--bld-line);font-weight:700}
+.btn.full{width:100%}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+
+.tour{border:1.5px dashed var(--bld-line);border-radius:10px;padding:12px;margin:0 0 10px}
+.tour ol{margin:6px 0 10px;padding-left:1.3em;font-size:.92em}
+.banner{background:var(--yellow-soft);border-left:5px solid var(--warn-line);border-radius:6px;padding:10px 12px;margin:0 0 10px;font-size:.92em}
+.banner b{font-weight:900}
+
+/* route */
+.rhead{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:baseline;margin:0 0 6px}
+.rhead .ft{font-weight:900;font-size:1.05em}
+.meta{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+.meta span{font-size:.8em;font-weight:700;background:var(--field);border:1px solid var(--line);border-radius:6px;padding:2px 8px}
+.switch{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:1.5px solid var(--line);background:var(--field);border-radius:10px;padding:9px 12px;margin:0 0 10px;min-height:48px}
+.switch i{flex:none;width:44px;height:26px;border-radius:13px;background:var(--bld-line);position:relative;transition:background .15s}
+.switch i::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .15s}
+.switch[aria-checked="true"] i{background:var(--navy)}
+:root[data-theme="dark"] .switch[aria-checked="true"] i{background:var(--yellow)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .switch[aria-checked="true"] i{background:var(--yellow)}}
+.switch[aria-checked="true"] i::after{transform:translateX(18px)}
+.switch span{font-weight:700;font-size:.92em}
+.switch small{display:block;font-weight:400;color:var(--muted);font-size:.8em}
+
+.mapbox{border:1px solid var(--line);border-radius:10px;background:var(--card);overflow:hidden;margin:0 0 8px}
+#map{display:block;width:100%;aspect-ratio:3/2;height:auto}
+.mapbtns{display:flex;gap:6px;margin:0 0 12px}
+.mapbtns .chip{min-height:36px;padding:4px 12px;font-size:.85em}
+
+.steps{list-style:none;margin:0;padding:0;counter-reset:s}
+.steps li{display:flex;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.steps li:first-child{border-top:0}
+.num{flex:none;width:28px;height:28px;border-radius:50%;background:var(--navy);color:var(--navy-ink);font-weight:900;font-size:.85em;display:flex;align-items:center;justify-content:center;margin-top:2px}
+:root[data-theme="dark"] .num{background:var(--yellow);color:var(--yellow-ink)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .num{background:var(--yellow);color:var(--yellow-ink)}}
+.steps .tag{display:inline-block;font-size:.72em;font-weight:700;border:1.5px solid var(--navy);border-radius:4px;padding:0 6px;margin-right:6px;vertical-align:1px}
+.steps .st{font-weight:700}
+.steps .ss{font-size:.85em;color:var(--muted)}
+.warn{margin-top:6px;background:var(--yellow-soft);border-left:5px solid var(--warn-line);border-radius:6px;padding:7px 10px;font-size:.88em;font-weight:500}
+.photo{margin-top:6px;border:1.5px dashed var(--bld-line);border-radius:8px;padding:8px;font-size:.8em;color:var(--muted);text-align:center}
+.arrive .num{background:var(--yellow);color:var(--yellow-ink)}
+
+/* data tab */
+.redit{display:grid;grid-template-columns:1fr 128px;gap:6px;margin:0 0 6px}
+.redit input,.redit select{border:1.5px solid var(--line);background:var(--field);border-radius:8px;padding:8px 9px;min-height:44px;width:100%}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.78em;color:var(--muted);word-break:break-all}
+textarea.json{width:100%;min-height:150px;border:1.5px solid var(--line);background:var(--field);border-radius:8px;padding:8px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.75em}
+.msg{background:var(--yellow-soft);border-left:5px solid var(--warn-line);border-radius:6px;padding:8px 10px;font-size:.88em;margin:0 0 10px}
+.ev h3{margin:0;font-size:1em;font-weight:900}
+.ev .m{font-size:.85em;color:var(--muted)}
+.badge{display:inline-block;background:var(--yellow);color:var(--yellow-ink);font-weight:900;font-size:.72em;border-radius:4px;padding:1px 7px;margin-left:6px;vertical-align:2px}
+.date{border:1.5px solid var(--line);background:var(--field);border-radius:8px;padding:6px 9px;min-height:40px}
+
+/* svg */
+.ground{fill:var(--ground)} .groundline{fill:none;stroke:var(--ground-line);stroke-width:2}
+.cell{fill:var(--bld);stroke:var(--bld-line);stroke-width:1.2}
+.cell.on{fill:var(--hl);stroke:var(--warn-line)}
+.flabel{fill:var(--muted);font-weight:700}
+.bname{fill:var(--ink);font-weight:900;text-anchor:middle}
+.bridge{fill:var(--bld);stroke:var(--bld-line);stroke-width:1.2}
+.blabel{fill:var(--muted);text-anchor:middle;font-weight:700}
+.dot{fill:var(--muted)}
+.rl{fill:var(--ink);text-anchor:middle;font-weight:700}
+.qrb{fill:var(--card);stroke:var(--ink);stroke-width:1.4}
+.qri{fill:var(--ink)}
+.rhalo{fill:none;stroke:var(--navy);stroke-width:10px;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke}
+:root[data-theme="dark"] .rhalo{stroke:#050b12}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .rhalo{stroke:#050b12}}
+.rline{fill:none;stroke:var(--yellow);stroke-width:6px;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke}
+.rflow{fill:none;stroke:var(--navy);stroke-width:3px;stroke-dasharray:0.1 11;stroke-linecap:round;vector-effect:non-scaling-stroke;animation:flow 1.1s linear infinite}
+@keyframes flow{to{stroke-dashoffset:-11.1}}
+@media (prefers-reduced-motion: reduce){.rflow{animation:none}}
+.mstart{fill:var(--navy);stroke:#fff;stroke-width:2.5}
+.mgoal{fill:var(--yellow);stroke:var(--navy);stroke-width:3}
+.bub-s{fill:var(--navy)} .bub-g{fill:var(--yellow);stroke:var(--navy);stroke-width:1.5}
+.bt-s{fill:#fff;font-weight:700;text-anchor:middle}
+.bt-g{fill:#0b2a4a;font-weight:900;text-anchor:middle}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="sign">
+    <h1>迷わない学内マップ</h1>
+    <p>QRで現在地が決まり、行き先を選ぶだけで案内が出ます。</p>
+  </header>
+  <div class="tactile" aria-hidden="true"></div>
+  <p class="note">デモ用の架空のキャンパスです。実際の校舎の配置や部屋とは関係ありません。</p>
+
+  <section class="card" aria-labelledby="h-qr">
+    <h2 id="h-qr">現在地(QRを読み取った想定)</h2>
+    <p class="sub">校内の要所に貼ったQRを読み取ると、その地点が出発点になります。</p>
+    <div class="chips" id="qr"></div>
+  </section>
+
+  <div class="tabs" role="tablist" id="tabs">
+    <button role="tab" data-act="tab" data-id="find">行き先を探す</button>
+    <button role="tab" data-act="tab" data-id="events">行事案内</button>
+    <button role="tab" data-act="tab" data-id="data">運用・更新</button>
+  </div>
+  <div id="panel"></div>
+
+  <section class="card" id="route" aria-live="polite"></section>
+</div>
+
+<script>
+/* ============ データ(本番ではスプレッドシート→JSON) ============ */
+const B={
+  b1:{name:'1号棟',x0:40,x1:240},
+  b2:{name:'2号棟',x0:275,x1:445},
+  b3:{name:'実験棟',x0:490,x1:630}
+};
+/* L = 地面からの高さ(段)。2号棟は1段高い所、実験棟は2段高い所に建つ坂のキャンパス */
+const FLOORS=[
+  {id:'b1-1',b:'b1',L:1,label:'1F',slots:[80,115,150]},
+  {id:'b1-2',b:'b1',L:2,label:'2F',slots:[80,115,150]},
+  {id:'b1-3',b:'b1',L:3,label:'3F',slots:[80,115,150]},
+  {id:'b1-4',b:'b1',L:4,label:'4F',slots:[80,115,150]},
+  {id:'b2-1',b:'b2',L:2,label:'1F',slots:[335,375]},
+  {id:'b2-2',b:'b2',L:3,label:'2F',slots:[330,370]},
+  {id:'b2-3',b:'b2',L:4,label:'3F',slots:[335,375]},
+  {id:'b3-1',b:'b3',L:3,label:'1F',slots:[535,570]},
+  {id:'b3-2',b:'b3',L:4,label:'2F',slots:[535,570]}
+];
+const FL=Object.fromEntries(FLOORS.map(f=>[f.id,f]));
+const yL=L=>350-(L-1)*62;
+
+const INIT=[
+  {id:'reception',name:'受付・事務室',short:'受付',f:'b1-1',slot:0,kw:'事務 受付 面談 来客'},
+  {id:'canteen',name:'学生食堂',short:'食堂',f:'b1-1',slot:1,kw:'食事 ごはん 昼食'},
+  {id:'library',name:'図書館',short:'図書',f:'b1-2',slot:0,kw:'本 自習'},
+  {id:'academic',name:'教務室',short:'教務',f:'b1-2',slot:1,kw:'履修 証明書'},
+  {id:'r301',name:'講義室301',short:'301',f:'b1-3',slot:0,kw:'教室 授業'},
+  {id:'r302',name:'講義室302',short:'302',f:'b1-3',slot:1,kw:'教室 授業'},
+  {id:'hall',name:'大講義室',short:'講堂',f:'b1-4',slot:0,kw:'教室 説明会'},
+  {id:'general',name:'一般科目 教員室',short:'一般',f:'b1-4',slot:1,kw:'先生 教員室 教員'},
+  {id:'circuit',name:'電子回路実験室',short:'電子',f:'b2-1',slot:0,kw:'実験室 電子工作 実験'},
+  {id:'ee_office',name:'電気電子 教員室',short:'教員',f:'b2-2',slot:0,kw:'先生 教員室 教員 電気電子コース'},
+  {id:'control',name:'制御工学 研究室',short:'制御',f:'b2-2',slot:1,kw:'研究室 先生'},
+  {id:'infolab',name:'情報実習室',short:'情報',f:'b2-3',slot:0,kw:'プログラミング 実習 パソコン'},
+  {id:'material',name:'材料実験室',short:'材料',f:'b3-1',slot:0,kw:'実験室 実験'},
+  {id:'aicg',name:'AI・CG スタジオ',short:'AI',f:'b3-2',slot:0,kw:'AI CG スタジオ 3D 人工知能'},
+  {id:'heavy',name:'大型実験室',short:'大型',f:'b3-2',slot:1,kw:'実験室 実験'}
+];
+let ROOMS=JSON.parse(JSON.stringify(INIT));
+
+const HUBS=[
+  {id:'gate',name:'正門',out:true,x:24,qr:true},
+  {id:'road',name:'構内道路',out:true,x:245},
+  {id:'b1_ent',name:'1号棟 入口',f:'b1-1',x:52,qr:true},
+  {id:'b1_exit',name:'1号棟 東口',f:'b1-1',x:232},
+  {id:'b2_ent',name:'2号棟 入口',f:'b2-1',x:292,qr:true},
+  {id:'b1_br',name:'1号棟 渡り廊下口',f:'b1-3',x:232},
+  {id:'b2_brW',name:'2号棟 西の渡り廊下口',f:'b2-2',x:285},
+  {id:'b2_brE',name:'2号棟 東の渡り廊下口',f:'b2-2',x:440},
+  {id:'b3_br',name:'実験棟 入口',f:'b3-1',x:495,qr:true},
+  ...[1,2,3,4].flatMap(k=>[
+    {id:'s1_'+k,name:'1号棟 階段',f:'b1-'+k,x:205},
+    {id:'e1_'+k,name:'1号棟 エレベーター',f:'b1-'+k,x:178,qr:k===3}
+  ]),
+  ...[1,2,3].map(k=>({id:'s2_'+k,name:'2号棟 階段',f:'b2-'+k,x:415})),
+  ...[1,2].map(k=>({id:'e3_'+k,name:'実験棟 エレベーター',f:'b3-'+k,x:610}))
+];
+/* 2号棟にはエレベーターなし(階段のみ)。段差なし経路は1号棟のEVから渡り廊下で入る */
+const FIXED=[
+  {a:'gate',b:'road',c:80,t:'walk'},
+  {a:'gate',b:'b1_ent',c:6,t:'walk'},
+  {a:'b1_exit',b:'road',c:5,t:'walk'},
+  {a:'road',b:'b2_ent',c:25,t:'ostairs'},
+  {a:'road',b:'b2_ent',c:70,t:'slope'},
+  {a:'b1_br',b:'b2_brW',c:15,t:'bridge'},
+  {a:'b2_brE',b:'b3_br',c:15,t:'bridge'},
+  ...[1,2,3].map(k=>({a:'s1_'+k,b:'s1_'+(k+1),c:25,t:'stairs'})),
+  ...[1,2,3].map(k=>({a:'e1_'+k,b:'e1_'+(k+1),c:45,t:'elev'})),
+  {a:'s2_1',b:'s2_2',c:25,t:'stairs'},{a:'s2_2',b:'s2_3',c:25,t:'stairs'},
+  {a:'e3_1',b:'e3_2',c:45,t:'elev'}
+];
+
+const EVENTS=[
+  {id:'e_oc',name:'オープンキャンパス(AI・CG体験)',date:'2026-10-24',time:'10:00〜15:00',venue:'aicg',meet:'gate',note:'受付は正門側です。体験ブースは実験棟2階です。'},
+  {id:'e_pta',name:'保護者向け 進路説明会',date:'2026-10-10',time:'13:00〜14:30',venue:'r301',meet:'gate',note:'1号棟3階の講義室301で行います。'},
+  {id:'e_lec1',name:'公開講座「はじめての電子工作」',date:'2026-11-03',time:'13:30〜15:30',venue:'circuit',meet:'gate',note:'2号棟1階です。正門から屋外を通って入れます。'},
+  {id:'e_lec2',name:'公開講座「AIとCG入門」',date:'2026-11-08',time:'10:00〜12:00',venue:'r302',meet:'gate',note:'1号棟3階の講義室302で行います。'}
+];
+const TOUR=[
+  {id:'reception',blurb:'まず受付で入校の手続きをします。'},
+  {id:'circuit',blurb:'電気回路をつくって動かす実験室です。'},
+  {id:'aicg',blurb:'AIやCGを使ったものづくりを体験できます。'},
+  {id:'library',blurb:'自習や本の貸し出しができる図書館です。'}
+];
+
+/* ============ グラフと経路探索 ============ */
+let N={},ADJ={};
+function build(){
+  N={};
+  const edges=[];
+  HUBS.forEach(h=>{
+    const n={...h};
+    if(n.out){n.L=1;n.y=yL(1)+10;}
+    else{const f=FL[n.f];n.L=f.L;n.y=yL(f.L)-16;}
+    N[n.id]=n;
+  });
+  ROOMS.forEach(r=>{
+    const f=FL[r.f];
+    N[r.id]={id:r.id,name:r.name,short:r.short,f:r.f,L:f.L,x:f.slots[r.slot],y:yL(f.L)-16,room:true,kw:r.kw};
+  });
+  const byF={};
+  Object.values(N).forEach(n=>{if(n.f){(byF[n.f]=byF[n.f]||[]).push(n);}});
+  Object.values(byF).forEach(list=>{
+    list.sort((p,q)=>p.x-q.x);
+    for(let i=0;i<list.length-1;i++){
+      edges.push({a:list[i].id,b:list[i+1].id,c:Math.max(3,(list[i+1].x-list[i].x)*0.35),t:'walk'});
+    }
+  });
+  edges.push(...FIXED);
+  ADJ={};
+  edges.forEach(e=>{
+    (ADJ[e.a]=ADJ[e.a]||[]).push({to:e.b,e});
+    (ADJ[e.b]=ADJ[e.b]||[]).push({to:e.a,e});
+  });
+}
+function findRoute(from,to,acc){
+  const dist={},prev={},pe={},done=new Set();
+  Object.keys(N).forEach(k=>dist[k]=Infinity);
+  dist[from]=0;
+  for(;;){
+    let u=null,best=Infinity;
+    for(const k in dist){if(!done.has(k)&&dist[k]<best){best=dist[k];u=k;}}
+    if(u===null||u===to)break;
+    done.add(u);
+    (ADJ[u]||[]).forEach(({to:v,e})=>{
+      if(acc&&(e.t==='stairs'||e.t==='ostairs'))return;
+      const nd=dist[u]+e.c;
+      if(nd<dist[v]){dist[v]=nd;prev[v]=u;pe[v]=e;}
+    });
+  }
+  if(dist[to]===Infinity)return null;
+  const path=[to],edges=[];
+  let c=to;
+  while(c!==from){edges.unshift(pe[c]);c=prev[c];path.unshift(c);}
+  return {path,edges,cost:dist[to]};
+}
+const place=n=>n.out?'屋外':B[FL[n.f].b].name+FL[n.f].label;
+const lab=n=>n.room||n.out?n.name:`${n.name}(${FL[n.f].label})`;
+
+function makeSteps(r){
+  const {path,edges}=r,out=[];
+  let i=0;
+  while(i<edges.length){
+    const e=edges[i],a=N[path[i]];
+    if(e.t==='walk'){
+      let j=i;
+      while(j+1<edges.length&&edges[j+1].t==='walk')j++;
+      const z=N[path[j+1]];
+      out.push({k:'歩く',title:`${lab(a)} から ${lab(z)} まで`,sub:place(a)===place(z)?place(a):`${place(a)} から ${place(z)}`});
+      i=j+1;
+    }else if(e.t==='stairs'||e.t==='elev'){
+      let j=i;
+      while(j+1<edges.length&&edges[j+1].t===e.t)j++;
+      const z=N[path[j+1]],dl=z.L-a.L,n=Math.abs(dl),nm=e.t==='elev'?'エレベーター':'階段';
+      out.push({k:nm,title:`${nm}で ${place(a)} から ${place(z)} へ`,sub:`${n}階分${dl>0?'上がります':'下ります'}`,photo:true});
+      i=j+1;
+    }else if(e.t==='bridge'){
+      const z=N[path[i+1]],same=FL[a.f].label===FL[z.f].label;
+      out.push({k:'渡り廊下',title:`渡り廊下で ${place(a)} から ${place(z)} へ`,sub:'同じ高さのまま、となりの棟へ渡ります',
+        warn:same?null:`階の表示が「${FL[a.f].label}」から「${FL[z.f].label}」に変わります。同じ高さなので、階段は使いません。`,photo:true});
+      i++;
+    }else{
+      const z=N[path[i+1]],sl=e.t==='slope';
+      out.push({k:'屋外',title:`屋外${sl?'スロープ':'階段'}で ${z.name} へ`,sub:sl?'段差なし。階段より少し遠回りです':'近道です(階段あり)',photo:true});
+      i++;
+    }
+  }
+  return out;
+}
+
+/* ============ 状態 ============ */
+const S={from:'gate',to:null,acc:false,purpose:null,tab:'find',q:'',tour:null,ev:null,view:'route',demoDate:'2026-10-24',showJson:false,dataMsg:'',fav:new Set()};
+try{const f=JSON.parse(localStorage.getItem('demo-fav')||'[]');if(Array.isArray(f))f.forEach(x=>S.fav.add(x));}catch(e){}
+const saveFav=()=>{try{localStorage.setItem('demo-fav',JSON.stringify([...S.fav]));}catch(e){}};
+
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm=s=>String(s).toLowerCase().replace(/[\s　・･]/g,'');
+const roomPlace=r=>B[FL[r.f].b].name+FL[r.f].label;
+const roomById=id=>ROOMS.find(r=>r.id===id);
+
+/* ============ 描画: 現在地・タブ ============ */
+function renderQR(){
+  const list=Object.values(N).filter(n=>n.qr);
+  $('#qr').innerHTML=list.map(n=>`<button class="chip" data-act="qr" data-id="${n.id}" aria-pressed="${S.from===n.id}">${esc(lab(n))}</button>`).join('');
+}
+function renderTabs(){
+  document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.id===S.tab)));
+}
+
+/* ============ 描画: 行き先タブ ============ */
+function rowHTML(r){
+  return `<li class="rowwrap"><button class="row" data-act="go" data-id="${r.id}"><b>${esc(r.name)}</b><small>${esc(roomPlace(r))}</small></button><button class="star" data-act="fav" data-id="${r.id}" aria-pressed="${S.fav.has(r.id)}" aria-label="${esc(r.name)}をお気に入りにする">${S.fav.has(r.id)?'★':'☆'}</button></li>`;
+}
+function resultsHTML(){
+  const q=norm(S.q);
+  let list,title;
+  if(q){
+    list=ROOMS.filter(r=>norm(r.name+r.kw+r.short+roomPlace(r)).includes(q));
+    title=`検索結果 ${list.length}件`;
+  }else{
+    const pick={parent:['reception','ee_office','canteen','r301'],junior:TOUR.map(t=>t.id),fresher:['circuit','ee_office','aicg','library']}[S.purpose];
+    const favs=ROOMS.filter(r=>S.fav.has(r.id));
+    if(S.purpose==='fresher'&&favs.length){list=favs;title='お気に入り';}
+    else if(pick){list=pick.map(roomById).filter(Boolean);title='よく探される場所';}
+    else{list=ROOMS.slice(0,6);title='よく探される場所';}
+  }
+  if(!list.length)return `<p class="empty">見つかりません。「教員室」「実験室」など短い言葉で探してみてください。</p>`;
+  return `<p class="sub" style="margin:10px 0 6px">${title}</p><ul class="rows">${list.map(rowHTML).join('')}</ul>`;
+}
+function panelFind(){
+  const P=S.purpose;
+  let extra='';
+  if(P==='junior'){
+    extra=`<div class="tour"><b>見学ルート(全${TOUR.length}か所)</b><ol>${TOUR.map(t=>`<li>${esc(roomById(t.id).name)}</li>`).join('')}</ol><button class="btn full" data-act="tour-start">正門から見学をはじめる</button></div>`;
+  }
+  if(P==='fresher'){
+    extra=`<div class="chips" style="margin:0 0 10px">${['実験室','教員室','研究室','講義室'].map(c=>`<button class="chip" data-act="cat" data-id="${c}">${c}</button>`).join('')}</div>`;
+  }
+  return `<section class="card">
+    <h2>今日の目的は?</h2>
+    <div class="purpose">
+      <button data-act="purpose" data-id="parent" aria-pressed="${P==='parent'}"><b>保護者</b><span>受付・面談</span></button>
+      <button data-act="purpose" data-id="junior" aria-pressed="${P==='junior'}"><b>中学生</b><span>見学ルート</span></button>
+      <button data-act="purpose" data-id="fresher" aria-pressed="${P==='fresher'}"><b>新入生</b><span>教室・教員室</span></button>
+    </div>
+    ${P==='parent'?'<p class="sub">文字を大きくしました。</p>':''}
+    ${extra}
+    <input id="q" class="search" type="search" placeholder="行き先を入力(例:先生、実験室、食堂)" value="${esc(S.q)}" autocomplete="off" aria-label="行き先を検索">
+    <div id="results">${resultsHTML()}</div>
+  </section>`;
+}
+
+/* ============ 描画: 行事タブ ============ */
+function panelEvents(){
+  const shown=EVENTS.filter(e=>e.date>=S.demoDate),hidden=EVENTS.length-shown.length;
+  return `<section class="card">
+    <h2>行事案内</h2>
+    <p class="sub">行事用QRを読み取った来場者は、アプリもログインも不要で、会場までの経路が開きます。</p>
+    <label class="sub" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">デモ用の日付(実運用では今日の日付で自動判定) <input class="date" type="date" value="${S.demoDate}" data-demodate></label>
+    ${shown.map(e=>{const v=roomById(e.venue);return `<div class="card ev" style="margin:10px 0 0">
+      <h3>${esc(e.name)}${e.date===S.demoDate?'<span class="badge">本日</span>':''}</h3>
+      <div class="m">${e.date.replace(/-/g,'/')} ${esc(e.time)}</div>
+      <div class="m">会場:${esc(v.name)}(${esc(roomPlace(v))}) / 集合:${esc(N[e.meet].name)}</div>
+      <p class="sub" style="margin:6px 0 0">${esc(e.note)}</p>
+      <div class="mono">行事用QRの中身:?event=${e.id}</div>
+      <div class="btns"><button class="btn" data-act="ev" data-id="${e.id}">この会場へ案内</button></div>
+    </div>`;}).join('')||'<p class="empty">この日に案内する行事はありません。</p>'}
+    ${hidden?`<p class="note" style="margin-top:10px">終了した行事 ${hidden}件は自動で非表示になっています。</p>`:''}
+  </section>`;
+}
+
+/* ============ 描画: 運用タブ ============ */
+function panelData(){
+  const opts=id=>FLOORS.map(f=>`<option value="${f.id}"${f.id===id?' selected':''}>${B[f.b].name}${f.label}</option>`).join('');
+  const qrs=Object.values(N).filter(n=>n.qr);
+  return `<section class="card">
+    <h2>部屋の変更を試す</h2>
+    <p class="sub">名前を書き換える、別の階へ移す。検索も経路もすぐ変わります。QRの貼り替えは不要です。</p>
+    ${S.dataMsg?`<div class="msg" role="status">${esc(S.dataMsg)}</div>`:''}
+    ${ROOMS.map(r=>`<div class="redit"><input value="${esc(r.name)}" data-rn="${r.id}" aria-label="${esc(r.name)}の名前"><select data-rf="${r.id}" aria-label="${esc(r.name)}の場所">${opts(r.f)}</select></div>`).join('')}
+    <div class="btns">
+      <button class="btn ghost" data-act="json">${S.showJson?'JSONを閉じる':'JSONを書き出す'}</button>
+      <button class="btn ghost" data-act="reset">初期状態に戻す</button>
+    </div>
+    ${S.showJson?`<p class="sub" style="margin:10px 0 4px">本番ではこの表(スプレッドシート)が地図のデータになります。</p><textarea class="json" readonly>${esc(JSON.stringify(ROOMS.map(r=>({id:r.id,name:r.name,floor:roomPlace(r),keywords:r.kw})),null,1))}</textarea>`:''}
+  </section>
+  <section class="card">
+    <h2>担当が変わっても更新できる手順</h2>
+    <ol style="margin:0;padding-left:1.3em;font-size:.92em">
+      <li>スプレッドシートで、部屋の行を書き換える</li>
+      <li>書き出したJSONを差し替えて公開する</li>
+      <li>QRは貼り替えない(QRには地点の番号だけが入っている)</li>
+    </ol>
+  </section>
+  <section class="card">
+    <h2>QRの中身</h2>
+    <p class="sub">各地点のQRは、下のような短いURLになります。位置情報は保存しません。</p>
+    ${qrs.map(n=>`<div class="mono" style="margin:0 0 4px">${esc(lab(n))} → ?from=${n.id}</div>`).join('')}
+  </section>`;
+}
+function renderPanel(){
+  $('#panel').innerHTML=S.tab==='find'?panelFind():S.tab==='events'?panelEvents():panelData();
+  document.body.classList.toggle('large',S.purpose==='parent');
+}
+
+/* ============ 描画: 地図 ============ */
+function fit(minx,maxx,miny,maxy,px,py){
+  let w=Math.max(300,maxx-minx+2*px),h=Math.max(w/1.5,maxy-miny+2*py);
+  w=Math.max(w,h*1.5);h=w/1.5;
+  const cx=(minx+maxx)/2,cy=(miny+maxy)/2;
+  return [cx-w/2,cy-h/2,w,h];
+}
+function bubble(x,y,text,cls,fs,above,r){
+  const w=text.length*fs*0.98+14,h=fs+9;
+  const bx=Math.min(Math.max(x-w/2,2),638-w);
+  const by=above?y-r-5-h:y+r+5;
+  return `<g><rect x="${bx}" y="${by}" width="${w}" height="${h}" rx="4" class="bub-${cls}"/><text x="${bx+w/2}" y="${by+h/2+fs*0.36}" font-size="${fs}" class="bt-${cls}">${esc(text)}</text></g>`;
+}
+function mapSVG(r){
+  const cw=Math.min(document.documentElement.clientWidth,520)-56;
+  let vb;
+  if(r&&S.view==='route'){
+    const xs=r.path.map(id=>N[id].x),ys=r.path.map(id=>N[id].y);
+    vb=fit(Math.min(...xs),Math.max(...xs),Math.min(...ys),Math.max(...ys),60,62);
+  }else vb=fit(0,640,90,390,0,0);
+  const w=vb[2],s=w/cw;
+  const fsB=Math.max(15,11*s),fsF=Math.max(11,9*s),fsL=Math.max(12,11*s);
+  const routeF=new Set(r?r.path.map(id=>N[id].f).filter(Boolean):[]);
+  let g='';
+  g+=`<path d="M0,350 H250 L275,288 H455 L480,226 H640 V420 H0Z" class="ground"/>`;
+  g+=`<path d="M0,350 H250 L275,288 H455 L480,226 H640" class="groundline"/>`;
+  Object.entries(B).forEach(([bk,b])=>{
+    const fl=FLOORS.filter(f=>f.b===bk),top=Math.max(...fl.map(f=>f.L));
+    fl.forEach(f=>{
+      g+=`<rect x="${b.x0}" y="${yL(f.L)-56}" width="${b.x1-b.x0}" height="56" rx="3" class="cell${routeF.has(f.id)?' on':''}"/>`;
+      g+=`<text x="${b.x0+5}" y="${yL(f.L)-42}" font-size="${fsF}" class="flabel">${f.label}</text>`;
+    });
+    g+=`<text x="${(b.x0+b.x1)/2}" y="${yL(top)-64}" font-size="${fsB}" class="bname">${b.name}</text>`;
+  });
+  [[240,275],[445,490]].forEach(([x0,x1])=>{
+    g+=`<rect x="${x0}" y="${yL(3)-30}" width="${x1-x0}" height="16" class="bridge"/>`;
+    g+=`<text x="${(x0+x1)/2}" y="${yL(3)-35}" font-size="9" class="blabel">渡り廊下</text>`;
+  });
+  Object.values(N).forEach(n=>{
+    if(n.room){
+      g+=`<circle cx="${n.x}" cy="${n.y}" r="3.5" class="dot"/>`;
+      if(w<=380)g+=`<text x="${n.x}" y="${n.y-8}" font-size="11" class="rl">${esc(n.short)}</text>`;
+    }
+    if(n.qr){
+      g+=`<rect x="${n.x-5}" y="${n.y-5}" width="10" height="10" rx="1.5" class="qrb"/><rect x="${n.x-3}" y="${n.y-3}" width="3" height="3" class="qri"/><rect x="${n.x+0.5}" y="${n.y+0.5}" width="3" height="3" class="qri"/>`;
+    }
+  });
+  if(r){
+    const pts=r.path.map(id=>`${N[id].x},${N[id].y}`).join(' ');
+    g+=`<polyline points="${pts}" class="rhalo"/><polyline points="${pts}" class="rline"/><polyline points="${pts}" class="rflow"/>`;
+    const a=N[r.path[0]],z=N[r.path[r.path.length-1]],mr=Math.max(7,6*s);
+    g+=`<circle cx="${a.x}" cy="${a.y}" r="${mr}" class="mstart"/>`;
+    g+=`<circle cx="${z.x}" cy="${z.y}" r="${mr}" class="mgoal"/>`;
+    g+=bubble(a.x,a.y,'現在地','s',fsL,false,mr);
+    g+=bubble(z.x,z.y,z.name,'g',fsL,true,mr);
+  }
+  return `<svg id="map" viewBox="${vb.map(v=>v.toFixed(1)).join(' ')}" role="img" aria-label="キャンパスの断面図と経路">${g}</svg>`;
+}
+
+/* ============ 描画: 経路カード ============ */
+function renderRoute(){
+  const el=$('#route');
+  let html=`<h2 style="margin:0 0 8px;font-size:1.05em;font-weight:900">経路</h2>`;
+  const accSwitch=`<button class="switch" role="switch" aria-checked="${S.acc}" data-act="acc"><i></i><span>段差なし(階段を使わない)<small>車いす・ベビーカーの方向け</small></span></button>`;
+  if(!S.to){
+    html+=`<p class="sub">行き先を選ぶと、ここに案内が出ます。</p>${accSwitch}<div class="mapbox">${mapSVG(null)}</div>`;
+    el.innerHTML=html;return;
+  }
+  const dest=N[S.to],from=N[S.from];
+  if(S.tour){
+    const t=TOUR[S.tour.i],last=S.tour.i===TOUR.length-1;
+    html+=`<div class="banner"><b>見学 ${S.tour.i+1}/${TOUR.length}:${esc(dest.name)}</b><br>${esc(t.blurb)}<div class="btns"><button class="btn" data-act="${last?'tour-end':'tour-next'}">${last?'見学を終える':'次のスポットへ'}</button></div></div>`;
+  }
+  if(S.ev){
+    html+=`<div class="banner"><b>${esc(S.ev.name)}</b><br>集合:${esc(N[S.ev.meet].name)} / ${S.ev.date.replace(/-/g,'/')} ${esc(S.ev.time)}</div>`;
+  }
+  html+=accSwitch;
+  if(S.from===S.to){
+    html+=`<p class="sub">現在地が目的地です。</p><div class="mapbox">${mapSVG(null)}</div>`;
+    el.innerHTML=html;return;
+  }
+  const r=findRoute(S.from,S.to,S.acc);
+  if(!r){
+    html+=`<div class="msg">段差なしの経路がありません。エレベーターのない区間があります。「段差なし」を切ると階段の経路が出ます。受付に相談することもできます。</div><div class="btns"><button class="btn ghost" data-act="lost">受付へ案内する</button></div><div class="mapbox" style="margin-top:10px">${mapSVG(null)}</div>`;
+    el.innerHTML=html;return;
+  }
+  const st=makeSteps(r),mins=Math.max(1,Math.round(r.cost/60)),moves=st.filter(x=>x.k==='階段'||x.k==='エレベーター').length;
+  html+=`<div class="rhead"><span class="ft">${esc(lab(from))}</span><span>から</span><span class="ft">${esc(dest.name)}</span></div>
+  <div class="meta"><span>約${mins}分</span><span>階の移動 ${moves}回</span>${S.acc?'<span>段差なし</span>':''}</div>
+  <div class="mapbox">${mapSVG(r)}</div>
+  <div class="mapbtns"><button class="chip" data-act="view" data-id="route" aria-pressed="${S.view==='route'}">経路にズーム</button><button class="chip" data-act="view" data-id="all" aria-pressed="${S.view==='all'}">全体を見る</button></div>
+  <ol class="steps">${st.map((x,i)=>`<li><span class="num">${i+1}</span><div><div><span class="tag">${x.k}</span><span class="st">${esc(x.title)}</span></div><div class="ss">${esc(x.sub)}</div>${x.warn?`<div class="warn">${esc(x.warn)}</div>`:''}${x.photo?'<div class="photo">ここに分岐点の写真を表示します(サンプル)</div>':''}</div></li>`).join('')}
+    <li class="arrive"><span class="num">✓</span><div><div class="st">到着:${esc(dest.name)}</div><div class="ss">${esc(place(dest))}</div></div></li></ol>
+  <div class="btns"><button class="btn ghost" data-act="lost">迷ったら受付へ</button><button class="btn ghost" data-act="clear">案内をやめる</button></div>`;
+  el.innerHTML=html;
+}
+function renderAll(){renderQR();renderTabs();renderPanel();renderRoute();}
+function goRoute(){
+  renderRoute();
+  const rm=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  $('#route').scrollIntoView({behavior:rm?'auto':'smooth',block:'start'});
+}
+
+/* ============ 操作 ============ */
+document.addEventListener('click',e=>{
+  const t=e.target.closest('[data-act]');
+  if(!t)return;
+  const a=t.dataset.act,id=t.dataset.id;
+  if(a==='qr'){S.from=id;renderQR();renderRoute();}
+  else if(a==='tab'){S.tab=id;renderTabs();renderPanel();}
+  else if(a==='purpose'){S.purpose=S.purpose===id?null:id;S.q='';renderPanel();}
+  else if(a==='cat'){S.q=id;renderPanel();}
+  else if(a==='go'){S.to=id;S.tour=null;S.ev=null;S.view='route';goRoute();}
+  else if(a==='fav'){S.fav.has(id)?S.fav.delete(id):S.fav.add(id);saveFav();$('#results').innerHTML=resultsHTML();}
+  else if(a==='acc'){S.acc=!S.acc;renderRoute();}
+  else if(a==='lost'){S.to='reception';S.tour=null;S.ev=null;goRoute();}
+  else if(a==='clear'){S.to=null;S.tour=null;S.ev=null;renderRoute();}
+  else if(a==='view'){S.view=id;renderRoute();}
+  else if(a==='tour-start'){S.tour={i:0};S.from='gate';S.to=TOUR[0].id;S.ev=null;S.view='route';renderQR();goRoute();}
+  else if(a==='tour-next'){S.from=TOUR[S.tour.i].id;S.tour.i++;S.to=TOUR[S.tour.i].id;renderQR();goRoute();}
+  else if(a==='tour-end'){S.tour=null;S.to=null;renderRoute();}
+  else if(a==='ev'){const ev=EVENTS.find(x=>x.id===id);S.ev=ev;S.tour=null;S.from=ev.meet;S.to=ev.venue;S.view='route';renderQR();goRoute();}
+  else if(a==='json'){S.showJson=!S.showJson;renderPanel();}
+  else if(a==='reset'){ROOMS=JSON.parse(JSON.stringify(INIT));S.dataMsg='初期状態に戻しました。';build();renderQR();renderPanel();renderRoute();}
+});
+document.addEventListener('input',e=>{
+  if(e.target.id==='q'){S.q=e.target.value;$('#results').innerHTML=resultsHTML();}
+});
+document.addEventListener('change',e=>{
+  const t=e.target;
+  if(t.dataset.rn){
+    const r=roomById(t.dataset.rn),v=t.value.trim();
+    if(r&&v){r.name=v;S.dataMsg=`名前を「${v}」に変えました。検索にも案内にも反映されています。`;build();renderPanel();renderRoute();}
+  }else if(t.dataset.rf){
+    const r=roomById(t.dataset.rf),f=FL[t.value];
+    const slot=f.slots.findIndex((_,i)=>!ROOMS.some(o=>o!==r&&o.f===f.id&&o.slot===i));
+    if(slot<0){S.dataMsg=`${B[f.b].name}${f.label}には空きがありません。ほかの階を選んでください。`;}
+    else{r.f=f.id;r.slot=slot;S.dataMsg=`「${r.name}」を ${B[f.b].name}${f.label} に移しました。経路は自動で作り直されます。`;build();}
+    renderPanel();renderRoute();
+  }else if('demodate' in t.dataset){
+    if(t.value){S.demoDate=t.value;renderPanel();}
+  }
+});
+let rt;
+window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(renderRoute,150);});
+
+/* ============ 起動(QRのURLパラメータに対応) ============ */
+build();
+try{
+  const p=new URLSearchParams(location.search);
+  if(p.get('from')&&N[p.get('from')])S.from=p.get('from');
+  if(p.get('to')&&N[p.get('to')])S.to=p.get('to');
+  const ev=EVENTS.find(x=>x.id===p.get('event'));
+  if(ev){S.ev=ev;S.tab='events';S.from=ev.meet;S.to=ev.venue;S.demoDate=ev.date;}
+}catch(e){}
+renderAll();
+</script>
+</body>
+</html>
